@@ -1,0 +1,76 @@
+"""FastMCP server entrypoint."""
+
+from __future__ import annotations
+
+from .config import get_settings
+from .logging_config import configure_logging
+from .odoo_client import OdooClient
+from .purchase_tools import PurchaseService
+from .schemas import PurchaseOrderDetailInput, PurchaseOrderQueryInput, VendorSearchInput
+
+try:
+    from mcp.server.fastmcp import FastMCP
+except ImportError as exc:  # pragma: no cover
+    raise RuntimeError("The `mcp` package is required to run this server.") from exc
+
+
+def create_server() -> FastMCP:
+    """Create and configure the FastMCP server."""
+
+    settings = get_settings()
+    configure_logging(settings.log_level)
+    service = PurchaseService(OdooClient(settings), settings)
+    server = FastMCP(name="OmniERP Agent Bridge")
+
+    @server.tool()
+    def health_check() -> dict:
+        return service.health_check().model_dump(mode="json")
+
+    @server.tool()
+    def find_vendor(query: str, limit: int = 10) -> list[dict]:
+        payload = VendorSearchInput(query=query, limit=limit)
+        return [vendor.model_dump(mode="json") for vendor in service.find_vendor(payload)]
+
+    @server.tool()
+    def get_open_purchase_orders(
+        vendor_name: str | None = None,
+        vendor_id: int | None = None,
+        limit: int = 20,
+        include_lines: bool = True,
+    ) -> list[dict]:
+        payload = PurchaseOrderQueryInput(
+            vendor_name=vendor_name,
+            vendor_id=vendor_id,
+            limit=limit,
+            include_lines=include_lines,
+        )
+        return [
+            order.model_dump(mode="json")
+            for order in service.get_open_purchase_orders(payload)
+        ]
+
+    @server.tool()
+    def summarize_open_purchase_orders(vendor_name: str, include_lines: bool = True) -> dict:
+        payload = PurchaseOrderQueryInput(
+            vendor_name=vendor_name,
+            limit=settings.max_result_limit,
+            include_lines=include_lines,
+        )
+        return service.summarize_open_purchase_orders(payload).model_dump(mode="json")
+
+    @server.tool()
+    def get_purchase_order_details(po_name: str) -> dict:
+        payload = PurchaseOrderDetailInput(po_name=po_name)
+        return service.get_purchase_order_details(payload).model_dump(mode="json")
+
+    return server
+
+
+def main() -> None:
+    """Run the FastMCP server."""
+
+    create_server().run()
+
+
+if __name__ == "__main__":  # pragma: no cover
+    main()
