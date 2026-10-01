@@ -1,0 +1,16 @@
+[
+  {
+    "name": "INV/2026/0042",
+    "partner_id": [41, "Cedar & Finch Market"],
+    "invoice_date_due": "2026-08-15",
+    "currency_id": [1, "USD"],
+    "amount_residual": 1250.00
+  },
+  {
+    "name": "INV/2026/0051",
+    "partner_id": [52, "Northstar Office Supply"],
+    "invoice_date_due": "2026-09-01",
+    "currency_id": [1, "USD"],
+    "amount_residual": 387.50
+  }
+]

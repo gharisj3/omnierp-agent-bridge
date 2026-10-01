@@ -1,160 +1,88 @@
 # OmniERP Agent Bridge
 
-**Stop clicking through your ERP. Start asking it questions.**
+Read-only, permission-scoped MCP tools for Odoo reporting, with a JSONL audit record for every tool invocation.
 
-OmniERP Agent Bridge is a portfolio-grade MCP server that lets an LLM ask scoped, read-only questions against live Odoo Community 18 data over XML-RPC.
+[![CI](https://github.com/gharisj3/omnierp-agent-bridge/actions/workflows/ci.yml/badge.svg)](https://github.com/gharisj3/omnierp-agent-bridge/actions/workflows/ci.yml)
 
-## Problem
+## Why this exists
 
-ERP users waste time navigating modules, filters, exports, and Excel just to answer simple business questions.
+ERP users often need a short answer from invoices or purchase orders without navigating several screens. This MCP server exposes a fixed set of named reporting tools and records each accepted, failed, or denied action. The repository contains no client ERP data or credentials.
 
-## Solution
-
-This project exposes a tightly allowlisted set of MCP tools for conversational purchase-order reporting:
-
-- `health_check`
-- `find_vendor`
-- `get_open_purchase_orders`
-- `summarize_open_purchase_orders`
-- `get_purchase_order_details`
-
-The bridge does not expose arbitrary Odoo model access, arbitrary domains, write operations, scraping, or a sync database.
-
-## Demo Question
-
-> What are the open POs for Wood Corner?
-
-## Example Response
-
-```json
-{
-  "vendor": "Wood Corner",
-  "open_po_count": 3,
-  "total_amount": 15705.73,
-  "currency_breakdown": {
-    "USD": 15705.73
-  },
-  "purchase_orders": [
-    {
-      "name": "PO02451",
-      "vendor": "Wood Corner",
-      "state": "purchase",
-      "date_order": "2026-06-20T09:15:00",
-      "currency": "USD",
-      "amount_untaxed": 4200.0,
-      "amount_tax": 336.0,
-      "amount_total": 4536.0
-    },
-    {
-      "name": "PO02468",
-      "vendor": "Wood Corner",
-      "state": "to approve",
-      "date_order": "2026-06-25T14:40:00",
-      "currency": "USD",
-      "amount_untaxed": 5100.0,
-      "amount_tax": 408.0,
-      "amount_total": 5508.0
-    },
-    {
-      "name": "PO02472",
-      "vendor": "Wood Corner",
-      "state": "purchase",
-      "date_order": "2026-06-27T11:00:00",
-      "currency": "USD",
-      "amount_untaxed": 5242.34,
-      "amount_tax": 419.39,
-      "amount_total": 5661.73
-    }
-  ],
-  "generated_at": "2026-07-02T12:00:00Z"
-}
-```
+This is a public reimplementation of patterns I've used in production client work. Client code and data are not included.
 
 ## Architecture
 
-`LLM client -> MCP server -> scoped tool -> Odoo XML-RPC -> live ERP data`
-
-See [docs/architecture.md](/E:/AI%20Agents/omnierp-agent-bridge/docs/architecture.md) for the full flow.
-
-## Security Model
-
-- Scoped tools only
-- No arbitrary model access
-- No arbitrary domain access from the LLM
-- No create, write, or unlink operations
-- Read-only Odoo user strongly recommended
-- No stored data
-- No scraping
-- No sync database
-
-See [SECURITY.md](/E:/AI%20Agents/omnierp-agent-bridge/SECURITY.md) for the threat model.
-
-## Supported Queries
-
-- Find vendors by name
-- List open purchase orders for a vendor
-- Summarize open purchase orders into structured totals
-- Retrieve purchase order details by PO number
-
-## Project Layout
-
-```text
-omnierp-agent-bridge/
-  src/omnierp_agent_bridge/
-  tests/
-  docs/
-  examples/
-  README.md
-  SECURITY.md
-  LIMITATIONS.md
-  pyproject.toml
-  mcp_config.example.json
+```mermaid
+flowchart LR
+    A[Agent client] --> M[MCP server]
+    M --> P[Tool allowlist and read-only permission check]
+    P --> S[Scoped reporting service]
+    S --> O[Odoo XML-RPC read methods]
+    M --> L[(Append-only JSONL audit log)]
+    P -->|denied write or unlisted tool| L
+    F[Synthetic receivables fixture] --> S
 ```
 
-## Setup
+- `server.py` exposes fixed MCP tools; there is no arbitrary model/domain endpoint.
+- `PurchaseService` and `ReceivablesService` build fixed Odoo queries with bounded result limits.
+- `audit.py` checks each tool against the allowlist and appends outcomes to the configured audit file.
+- `OdooClient` permits only XML-RPC `read` and `search_read` methods.
 
-```bash
-git clone <your-repo-url>
-cd omnierp-agent-bridge
+## Guardrails and security model
+
+The agent can call only names in `ALLOWED_TOOLS`. Deterministic Python validates tool inputs, caps result counts, constructs the allowed model/domain/field combinations, and rejects every write attempt before any Odoo call. The Odoo client has a second method-level check that allows only `read` and `search_read`. Each tool result, error, or denial is appended to `AUDIT_LOG_PATH` with its name, arguments, outcome, and timestamp. The log can contain business query arguments; protect and retain it accordingly. Use a dedicated Odoo account with read-only ACLs as a second boundary.
+
+## Quickstart
+
+Requires Python 3.11 or newer.
+
+```sh
 python -m venv .venv
-.venv\Scripts\activate
-python -m pip install --upgrade pip
-pip install -e .[dev]
-copy .env.example .env
+# Linux/macOS: . .venv/bin/activate
+# Windows PowerShell: .\.venv\Scripts\Activate.ps1
+make setup
+make test
+make demo
 ```
 
-Then edit `.env` with your Odoo connection details. Use a read-only Odoo user where possible.
+The local demo uses synthetic fixtures and needs no Odoo account. To connect the MCP server to an Odoo instance, copy `.env.example` to `.env`, replace the placeholder Odoo settings, use a read-only account, and run:
 
-## Run The MCP Server
-
-```bash
+```sh
 python -m omnierp_agent_bridge.server
 ```
 
-## MCP Client Config Example
+The package can also be installed with `pip install -e ".[dev]"`. Set `ALLOWED_TOOLS` to a comma-separated allowlist and `AUDIT_LOG_PATH` to a protected writable path.
 
-Use [mcp_config.example.json](/E:/AI%20Agents/omnierp-agent-bridge/mcp_config.example.json) as a starting point.
+## Demo
 
-## Tests
+`make demo` runs the same fixed overdue-receivables service against two synthetic invoices, writes a successful tool audit row, then attempts an invoice write and records a denial.
 
-```bash
-pytest
+```text
+Fixture mode: no Odoo instance or model API is called.
+Agent request: "show overdue receivables"
+Scoped tool: get_overdue_receivables
+Denied write: write operations are disabled
+Audit rows:
+{"outcome":"success","tool":"get_overdue_receivables", ...}
+{"outcome":"denied","tool":"create_invoice", ...}
 ```
 
-All tests use mocked XML-RPC behavior. No real client data or credentials are required.
+## Evaluation and testing
 
-## Roadmap
+Run `make test` for pytest. The tests cover query scoping, input limits, malformed configuration, successful audit writes, and a denied write that never executes. The local suite passes 13 tests. `ruff check .` and `ruff format --check .` pass. A full-history secret scan and clean-clone Makefile run remain pending.
 
-- Sales order summary
-- Inventory availability
-- Customer receivables
-- Invoice aging
-- Delivery status
-- Multi-ERP adapter interface
-- Role-based tool scopes
-- Audit logs
+## Design decisions and trade-offs
 
-## Positioning
+- Fixed business tools are easier to review than exposing arbitrary Odoo model access.
+- Read-only XML-RPC methods are enforced in code and should also be restricted by Odoo ACLs.
+- JSONL audit records are simple to inspect locally; production deployment should ship them to access-controlled durable storage.
+- The MCP server does not call an LLM. A separate agent client chooses when to call a tool; the offline demo exercises the tool boundary without pretending to be a model response.
 
-Built for Odoo Community 18, designed to extend to any ERP with an API.
+## Production notes
+
+A real deployment should add transport authentication, tenant/company scoping, audit integrity controls, log rotation, rate limits, connection pooling, and alerting. Verify Odoo record rules and field-level permissions for the dedicated service account.
+
+## Author
+
+Muhammad Gharis Javed — AI Engineer / AI Architect · github.com/gharisj3 · linkedin.com/in/muhammadgharis-javed
 

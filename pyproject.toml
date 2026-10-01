@@ -1,5 +1,5 @@
 [build-system]
-requires = ["setuptools>=68", "wheel"]
+requires = ["setuptools==80.9.0", "wheel==0.48.0"]
 build-backend = "setuptools.build_meta"
 
 [project]
@@ -13,16 +13,16 @@ authors = [
   { name = "Open Source Maintainers" }
 ]
 dependencies = [
-  "mcp>=1.10.0",
-  "pydantic>=2.8.0",
-  "pydantic-settings>=2.3.0",
+  "mcp==1.30.0",
+  "pydantic==2.13.5",
+  "pydantic-settings==2.15.0",
 ]
 
 [project.optional-dependencies]
 dev = [
-  "pytest>=8.2.0",
-  "pytest-cov>=5.0.0",
-  "ruff>=0.5.0",
+  "pytest==9.1.1",
+  "pytest-cov==7.1.0",
+  "ruff==0.16.9",
 ]
 
 [project.scripts]
