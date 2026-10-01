@@ -61,4 +61,3 @@ def test_unsupported_method_rejected() -> None:
     client = OdooClient(build_settings())
     with pytest.raises(OdooClientError):
         client._execute_kw("purchase.order", "unlink", [], {})
-

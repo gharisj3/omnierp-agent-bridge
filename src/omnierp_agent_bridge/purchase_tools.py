@@ -146,9 +146,7 @@ class PurchaseService:
         line_map: dict[int, list[PurchaseOrderLineRecord]] = {}
         if include_lines:
             order_line_ids = [
-                line_id
-                for row in rows
-                for line_id in (row.get("order_line", []) or [])
+                line_id for row in rows for line_id in (row.get("order_line", []) or [])
             ]
             if order_line_ids:
                 line_rows = self.client.read("purchase.order.line", order_line_ids, PO_LINE_FIELDS)

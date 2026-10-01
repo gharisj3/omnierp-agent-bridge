@@ -155,4 +155,3 @@ class OdooClient:
         if isinstance(value, dict):
             return {key: cls._normalize_false_values(item) for key, item in value.items()}
         return value
-

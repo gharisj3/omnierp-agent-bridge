@@ -22,4 +22,3 @@ def test_default_open_po_states_when_blank() -> None:
         OPEN_PO_STATES="",
     )
     assert settings.open_po_states == ("purchase", "to approve")
-

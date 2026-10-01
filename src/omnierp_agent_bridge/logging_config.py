@@ -38,4 +38,3 @@ def configure_logging(level: str) -> None:
     handler = logging.StreamHandler()
     handler.setFormatter(JsonFormatter())
     root_logger.addHandler(handler)
-

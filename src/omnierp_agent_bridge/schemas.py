@@ -84,3 +84,11 @@ class PurchaseOrderSummaryOutput(BaseModel):
 
 class PurchaseOrderDetailInput(BaseModel):
     po_name: str = Field(min_length=1, max_length=64)
+
+
+class OverdueReceivable(BaseModel):
+    invoice_number: str
+    customer: str | None = None
+    due_date: str | None = None
+    currency: str | None = None
+    amount_due: Decimal | float | int
