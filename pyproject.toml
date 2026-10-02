@@ -37,6 +37,7 @@ where = ["src"]
 [tool.pytest.ini_options]
 pythonpath = ["src"]
 testpaths = ["tests"]
+addopts = ["-p", "no:cacheprovider", "--basetemp=.pytest-local"]
 
 [tool.ruff]
 line-length = 100
@@ -44,4 +45,6 @@ target-version = "py311"
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "B", "UP", "N"]
+
+
 
