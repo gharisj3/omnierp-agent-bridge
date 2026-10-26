@@ -1,14 +1,15 @@
 # OmniERP Agent Bridge
 
-Read-only, permission-scoped MCP tools for Odoo reporting, with a JSONL audit record for every tool invocation.
+**Status: read-only MCP reference server.** Fixed Odoo reporting tools and an offline synthetic-fixture demo are implemented. A separate agent chooses tools; this server does not call an LLM. JSONL append mode does not make logs tamper-proof. Production transport authentication, tenant scoping and durable audit integrity remain deployment work.
 
-[![CI](https://github.com/gharisj3/omnierp-agent-bridge/actions/workflows/ci.yml/badge.svg)](https://github.com/gharisj3/omnierp-agent-bridge/actions/workflows/ci.yml)
+Read-only, permission-scoped MCP tools for Odoo reporting, with JSONL audit records for invocations that reach the tool permission wrapper.
+
 
 ## Why this exists
 
 ERP users often need a short answer from invoices or purchase orders without navigating several screens. This MCP server exposes a fixed set of named reporting tools and records each accepted, failed, or denied action. The repository contains no client ERP data or credentials.
 
-This is a public reimplementation of patterns I've used in production client work. Client code and data are not included.
+This public reference implementation uses synthetic examples. It demonstrates the patterns in this repository; it does not establish production client usage.
 
 ## Architecture
 
@@ -69,7 +70,7 @@ Audit rows:
 
 ## Evaluation and testing
 
-Run `make test` for pytest. The tests cover query scoping, input limits, malformed configuration, successful audit writes, and a denied write that never executes. The local suite passes 13 tests. `ruff check .` and `ruff format --check .` pass. A full-history secret scan and clean-clone Makefile run remain pending.
+Run `make test` for pytest. The tests cover query scoping, input limits, malformed configuration, successful audit writes, and a denied write that never executes. Run `python -m pytest` to verify the suite locally. `ruff check .` and `ruff format --check .` pass. A full-history secret scan and clean-clone Makefile run remain pending.
 
 ## Design decisions and trade-offs
 
@@ -84,5 +85,5 @@ A real deployment should add transport authentication, tenant/company scoping, a
 
 ## Author
 
-Muhammad Gharis Javed — AI Engineer / AI Architect · github.com/gharisj3 · linkedin.com/in/muhammadgharis-javed
+Muhammad Gharis Javed â€” AI Engineer / AI Architect Â· github.com/gharisj3 Â· linkedin.com/in/muhammadgharis-javed
 
